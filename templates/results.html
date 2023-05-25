@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+    <title>Tennis Court Reservations</title>
+    <style>
+        .date-divider {
+            height: 1px;
+            background-color: #000;
+            colspan: 3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tennis Court Reservations</h1>
+    <p>지금은 5월 캘린더에서만 "예약가능" 코트 조회! 6월은 나중에 할게요😫</p>
+    <p>저 일할때만 접속됩니다~ 아마 09:00 ~ 18:00 에서 왔다갔다 합니다.</p>
+    <h2>Last run time: {{ last_run_time }}</h2>
+    <h3>조회주기 : {{ execution_frequency }}</h3>
+    <h4>Query 시작 : {{ query_start_time }}</h4> <!-- 추가된 부분 -->
+    <h4>Query 종료 : {{ query_end_time }}</h4> <!-- 추가된 부분 -->
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Court</th>
+            <th>Time</th>
+        </tr>
+        {% for date, courts in reservations.items() %}
+            {% set row_span = [0] %}
+            {% for court, times in courts.items() %}
+                {% for time in times %}
+                    {% set _ = row_span.append(row_span.pop() + 1) %}
+                {% endfor %}
+            {% endfor %}
+            {% set first_row = [True] %}
+            {% for court, times in courts.items() %}
+                {% for time in times %}
+                    {% if first_row[0] %}
+                        <tr>
+                            <td rowspan="{{ row_span[0] }}">{{ date }}</td>
+                            <td>{{ court }}</td>
+                            <td>{{ time }}</td>
+                        </tr>
+                        {% set _ = first_row.pop() %}
+                        {% set _ = first_row.append(False) %}
+                    {% else %}
+                        <tr>
+                            <td>{{ court }}</td>
+                            <td>{{ time }}</td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            <tr class="date-divider"><td colspan="3"></td></tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

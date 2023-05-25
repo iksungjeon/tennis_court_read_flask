@@ -1,0 +1,119 @@
+from flask import Flask, render_template
+import atexit
+import datetime
+app = Flask(__name__)
+
+last_run_time = None  # 초기값은 None으로 설정합니다.
+
+@app.route('/reserve')
+def reserve_tennis_court():
+    global last_run_time
+
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait, Select
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
+    import time
+
+    s = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=s)
+
+    url = "https://www.ycs.or.kr/fmcs/133"
+    driver.get(url)
+
+    username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
+    username_field.send_keys("ryoukiding")
+
+    password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
+    password_field.send_keys("dlrtjd110$")
+
+    time.sleep(2)
+
+    login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
+    login_button.click()
+
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#process_logout")))
+
+    except UnexpectedAlertPresentException:
+        alert = driver.switch_to.alert
+        print("Alert shows: " + alert.text)
+        alert.accept()
+
+    url = "https://www.ycs.or.kr/fmcs/4"
+    driver.get(url)
+
+    select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
+    select_field.select_by_value("YCS04")
+    time.sleep(2)
+
+    wait = WebDriverWait(driver, 5)
+    select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
+    select_court = Select(select_court_field)
+
+    # 이 리스트에 가능한 예약 정보를 저장합니다.
+    reservations = {}
+
+    for court_num in range(1, 3):  # 5는 코트의 총 개수 + 1입니다.
+        select_court.select_by_value(str(court_num))  # 코트 선택
+        time.sleep(5)  # 페이지 로딩 대기 시간을 10초로 늘림
+
+        try:
+            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//button[contains(text(), '조회')]"))).click()
+        except TimeoutException:
+            print("TimeoutException: Element not found")
+
+        try:
+            available_dates = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
+
+        except TimeoutException:
+            print("TimeoutException: Element not found")
+            available_dates = []
+
+        sorted_dates_ids = []
+        for date_element in available_dates:
+            id_value = date_element.get_attribute("id")
+            id_parts = id_value.split('-')
+            if len(id_parts) == 2:
+                sorted_dates_ids.append(id_value)
+            else:
+                print(f"Unexpected id value: {id_value}")
+
+        sorted_dates_ids.sort(key=lambda x: int(x.split('-')[1]))
+
+        for date_id in sorted_dates_ids:
+            date_element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, date_id)))
+            date_element.click()
+            time.sleep(2)
+
+            select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
+            select_court = Select(select_court_field)
+
+            try:
+                available_times = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.XPATH, "//td[text()='예약가능']/preceding-sibling::td")))
+            except TimeoutException:
+                print("No available times found.")
+                available_times = []
+
+            if available_times:
+                for time_element in available_times:
+                    time_text = time_element.text.strip()
+                    if time_text:
+                        date = date_id.split('-')[1]
+                        court = select_court.first_selected_option.text
+                        if date not in reservations:
+                            reservations[date] = {}
+                        if court not in reservations[date]:
+                            reservations[date][court] = []
+                        reservations[date][court].append(time_text)
+    driver.quit()
+    last_run_time = datetime.datetime.now()
+    
+    return render_template('reservations.html', reservations=reservations, last_run_time=last_run_time)
+
+if __name__ == '__main__':
+    app.run(debug=True)

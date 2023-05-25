@@ -1,0 +1,126 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
+import time
+
+# 웹드라이버 초기화
+s = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=s)
+
+# 웹페이지 로드
+url = "https://www.ycs.or.kr/fmcs/133"  # 로그인 페이지로 직접 이동
+driver.get(url)
+
+# 로그인 필드에 사용자 이름 입력
+username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
+username_field.send_keys("ryoukiding")
+
+# 로그인 필드에 비밀번호 입력
+password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
+password_field.send_keys("dlrtjd110$")
+
+# 대기 시간 추가
+time.sleep(2)
+
+# 로그인 버튼 클릭
+login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
+login_button.click()
+
+try:
+    # 로딩 대기
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#process_logout")))
+
+except UnexpectedAlertPresentException:
+    # 경고창에 대한 참조를 가져옵니다.
+    alert = driver.switch_to.alert
+
+    # 경고창의 텍스트를 출력합니다.
+    print("Alert shows: " + alert.text)
+
+    # 경고창을 수락합니다. ('OK' 버튼을 누릅니다.)
+    alert.accept()
+
+# 예약 페이지로 이동
+url = "https://www.ycs.or.kr/fmcs/4"
+driver.get(url)
+
+# 목동 테니스장 선택
+select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
+select_field.select_by_value("YCS04")
+time.sleep(2)
+
+# 코트 선택 필드
+wait = WebDriverWait(driver, 5)
+select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
+select_court = Select(select_court_field)
+
+# 각 코트를 반복 (1부터 4까지)
+for court_num in range(13, 19):  # 5는 코트의 총 개수 + 1입니다.
+    select_court.select_by_value(str(court_num))  # 코트 선택
+    time.sleep(5)  # 페이지 로딩 대기 시간을 10초로 늘림
+
+    # 조회 버튼 클릭
+    try:
+        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//button[contains(text(), '조회')]"))).click()
+    except TimeoutException:
+        print("TimeoutException: Element not found")
+
+    # 예약 가능한 날짜 찾기
+    try:
+        available_dates = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
+
+    except TimeoutException:
+        print("TimeoutException: Element not found")
+        available_dates = []  # 예약 가능한 날짜가 없을 경우 빈 리스트를 할당합니다.
+
+    # 날짜별로 정렬
+    sorted_dates_ids = []
+    for date_element in available_dates:
+        id_value = date_element.get_attribute("id")
+        id_parts = id_value.split('-')
+        if len(id_parts) == 2:
+            sorted_dates_ids.append(id_value)
+        else:
+            print(f"Unexpected id value: {id_value}")
+
+    sorted_dates_ids.sort(key=lambda x: int(x.split('-')[1]))  # Changed index from 2 to 1
+
+    # 예약 가능한 날짜와 시간 출력
+    for date_id in sorted_dates_ids:
+        # 예약 가능한 날짜 요소 찾기
+        date_element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, date_id)))
+
+        # 날짜 요소 클릭
+        date_element.click()
+
+        # 페이지가 로드될 시간을 주기 위해 잠시 대기
+        time.sleep(2)
+
+        # 코트 선택 필드 재참조
+        select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
+        select_court = Select(select_court_field)
+
+        # 예약 가능한 시간 찾기
+#        available_times = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.XPATH, "//td[text()='예약가능']/preceding-sibling::td")))
+        try:
+            available_times = WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.XPATH, "//td[text()='예약가능']/preceding-sibling::td")))
+        except TimeoutException:
+            print("No available times found.")
+            available_times = []
+
+        # 예약 가능한 날짜, 코트 및 시간 출력
+        if available_times:
+            print(f"날짜: {date_id.split('-')[1]}, 코트: {select_court.first_selected_option.text}")
+            print("* 예약 가능 시간")
+            for time_element in available_times:
+                time_text = time_element.text.strip()
+                if time_text:
+                    print(time_text)
+            print()
+
+driver.quit()

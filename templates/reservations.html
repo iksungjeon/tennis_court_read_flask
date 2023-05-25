@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>테니스 예약 정보</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<h1>테니스 예약 가능 시간</h1>
+<p>Last Run Time: {{ last_run_time }}</p>
+{% for court, dates in reservations.items() %}
+    <h2>코트: {{ court }}</h2>
+    {% for date, times in dates.items() %}
+        <h3>날짜: {{ date }}</h3>
+        <table>
+            <tr>
+                <th>시간</th>
+            </tr>
+            {% for time in times %}
+                <tr>
+                    <td>{{ time }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endfor %}
+{% endfor %}
+</body>
+</html>
