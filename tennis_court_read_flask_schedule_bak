@@ -133,16 +133,14 @@ def reserve_tennis_court():
     # 이후 코드...
     # 예약 결과를 reservations에 저장합니다.
     # 조회 종료 시간을 설정하고 데이터베이스에 저장합니다.
-#    query_end_time = datetime.datetime.now()
-    query_end_time = datetime.now()
+    query_end_time = datetime.datetime.now()
     conn = sqlite3.connect('app.db')
     c = conn.cursor()
     c.execute("UPDATE QueryTimes SET start_time = ?, end_time = ? WHERE id = 1", (query_start_time, query_end_time))
     conn.commit()
     conn.close()
 
-#    last_run_time = datetime.datetime.now()
-    last_run_time = datetime.now()
+    last_run_time = datetime.datetime.now()
     
     # 'app.db' 데이터베이스에 last_run_time 업데이트
     conn = sqlite3.connect('app.db')
@@ -195,3 +193,4 @@ if __name__ == '__main__':
     conn.close()
 
     app.run(debug=True, host='0.0.0.0', port=5001)
+

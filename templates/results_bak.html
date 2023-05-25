@@ -12,8 +12,8 @@
 </head>
 <body>
     <h1>Tennis Court Reservations</h1>
-    <p>테린이들에게 코트기회는 소중한 것.. </p>
-    <p>아직은 캘린더 하나만(5월) "예약가능" 코트 조회가능해요 그래서 6월은 못가져오는데..😫 (아마!)나중에 추가 할게요~</p>
+    <p>테린이(테친자)들에게 코트기회는 소중한 것.. </p>
+    <p>아직은 캘린더 하나만(5월) "예약가능" 코트 조회가능해요! 그래서 6월은 못가져오는데..😫 (아마!)나중에 추가 할게요~</p>
     <p>일과 시간을 즐기면서 목테 예약에 도움이 되면 좋겠고 🎾 대체적으로 아침 9시부터 오후 6시 사이에 동작하니 참고해주세요.</p>
     <h2>Last run time: {{ last_run_time }}</h2>
     <h3>조회주기 : {{ execution_frequency }}</h3>
@@ -37,6 +37,7 @@
                 {% for time in times %}
                     {% if first_row[0] %}
                         <tr>
+                            <!-- 이 부분이 변했습니다: -->
                             <td rowspan="{{ row_span[0] }}">{{ date }} ({{ date | day_of_week }})</td>
                             <td>{{ court }}</td>
                             <td>{{ time }}</td>
