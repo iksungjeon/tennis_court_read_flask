@@ -9,23 +9,10 @@ app = Flask(__name__)
 last_run_time = None  # 초기값은 None으로 설정합니다.
 reservations = {}  # 여기에 예약 결과를 저장합니다.
 
-from datetime import datetime
-
-#def get_day_of_week(date_str):
-#    date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-#    return date_obj.strftime('%A')
-
-@app.template_filter('day_of_week')
-def get_day_of_week(date_str):
-    date_obj = datetime.strptime(date_str, '%Y%m%d')
-    return ['월', '화', '수', '목', '금', '토', '일'][date_obj.weekday()]
-
-
 @app.route('/reserve')
 def reserve_tennis_court():
     global last_run_time, reservations
-#    query_start_time = datetime.datetime.now()  # 조회 시작 시간 설정
-    query_start_time = datetime.now()  # 조회 시작 시간 설정
+    query_start_time = datetime.datetime.now()  # 조회 시작 시간 설정
 
     # 함수 내용을 이곳에 입력합니다.
     from selenium import webdriver
@@ -77,7 +64,7 @@ def reserve_tennis_court():
     # 이 리스트에 가능한 예약 정보를 저장합니다.
     reservations = {}
 
-    for court_num in range(1, 3):  # 5는 코트의 총 개수 + 1입니다.
+    for court_num in range(1, 19):  # 5는 코트의 총 개수 + 1입니다.
         select_court.select_by_value(str(court_num))  # 코트 선택
         time.sleep(2)  # 페이지 로딩 대기 시간을 10초로 늘림
 
@@ -87,7 +74,7 @@ def reserve_tennis_court():
             print("TimeoutException: Element not found")
 
         try:
-            available_dates = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
+            available_dates = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
 
         except TimeoutException:
             print("TimeoutException: Element not found")
@@ -133,22 +120,21 @@ def reserve_tennis_court():
     # 이후 코드...
     # 예약 결과를 reservations에 저장합니다.
     # 조회 종료 시간을 설정하고 데이터베이스에 저장합니다.
-#    query_end_time = datetime.datetime.now()
-    query_end_time = datetime.now()
+    query_end_time = datetime.datetime.now()
     conn = sqlite3.connect('app.db')
     c = conn.cursor()
     c.execute("UPDATE QueryTimes SET start_time = ?, end_time = ? WHERE id = 1", (query_start_time, query_end_time))
     conn.commit()
     conn.close()
 
-#    last_run_time = datetime.datetime.now()
-    last_run_time = datetime.now()
-    
+    last_run_time = datetime.datetime.now()
+
     # 'app.db' 데이터베이스에 last_run_time 업데이트
     conn = sqlite3.connect('app.db')
     c = conn.cursor()
     c.execute("UPDATE LastRunTime SET time = ? WHERE id = 1", (last_run_time,))
     conn.commit()
+    conn.close()
 
     return 'Reserve job done.'
 
@@ -156,7 +142,7 @@ def reserve_tennis_court():
 def result():
     conn = sqlite3.connect('app.db')
     c = conn.cursor()
-    
+
     c.execute("SELECT time FROM LastRunTime WHERE id = 1")
     last_run_time = c.fetchone()[0]
 
@@ -170,13 +156,13 @@ def result():
     return render_template('results.html', 
                            reservations=reservations, 
                            last_run_time=last_run_time,
-                           execution_frequency="2 minutes",  # 현재 설정에 따라 변경하십시오.
+                           execution_frequency="30 minutes",  # 현재 설정에 따라 변경하십시오.
                            query_start_time=query_start_time,
                            query_end_time=query_end_time)
 
 
 scheduler = BackgroundScheduler(daemon=True)
-scheduler.add_job(func=reserve_tennis_court, trigger="interval", minutes=2)
+scheduler.add_job(func=reserve_tennis_court, trigger="interval", minutes=30)
 scheduler.start()
 
 # Shut down the scheduler when exiting the app
@@ -188,7 +174,7 @@ if __name__ == '__main__':
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS LastRunTime (id INTEGER PRIMARY KEY, time TEXT)")
     c.execute("INSERT INTO LastRunTime (id, time) SELECT 1, '' WHERE NOT EXISTS(SELECT 1 FROM LastRunTime WHERE id = 1)")
-    
+
     c.execute("CREATE TABLE IF NOT EXISTS QueryTimes (id INTEGER PRIMARY KEY, start_time TEXT, end_time TEXT)")
     c.execute("INSERT INTO QueryTimes (id, start_time, end_time) SELECT 1, '', '' WHERE NOT EXISTS(SELECT 1 FROM QueryTimes WHERE id = 1)")
     conn.commit()
