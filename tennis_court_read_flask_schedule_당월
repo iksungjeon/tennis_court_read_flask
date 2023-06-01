@@ -17,7 +17,13 @@ def get_day_of_week(date):
 for date in reservations:
     reservations[date]['weekday'] = get_day_of_week(date)
 
-def process_month(driver, reservations):
+
+@app.route('/reserve')
+def reserve_tennis_court():
+    global last_run_time, reservations
+    query_start_time = datetime.datetime.now()
+
+    # 함수 내용을 이곳에 입력합니다.
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
     from webdriver_manager.chrome import ChromeDriverManager
@@ -27,10 +33,49 @@ def process_month(driver, reservations):
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
     import time
+
+    driver_path = '/Users/1112231/Downloads/chromedriver_mac_arm64/chromedriver'
+
+    service = Service(driver_path)
+
+    driver = webdriver.Chrome(service=service)
+
+    url = "https://www.ycs.or.kr/fmcs/133"
+    driver.get(url)
+
+    username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
+    username_field.send_keys("ryoukiding")
+
+    password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
+    password_field.send_keys("dlrtjd110$")
+
+    time.sleep(2)
+
+    login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
+    login_button.click()
+
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#process_logout")))
+
+    except UnexpectedAlertPresentException:
+        alert = driver.switch_to.alert
+        print("Alert shows: " + alert.text)
+        alert.accept()
+
+    url = "https://www.ycs.or.kr/fmcs/4"
+    driver.get(url)
+
+    select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
+    select_field.select_by_value("YCS04")
+    time.sleep(2)
+
     wait = WebDriverWait(driver, 3)
+    
+    reservations = {}
+
     for court_num in range(1, 19):
         retries = 0
-        max_retries = 2
+        max_retries = 5
         while retries < max_retries:
             try:
                 select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
@@ -49,7 +94,7 @@ def process_month(driver, reservations):
             print("TimeoutException: Element not found")
 
         try:
-            available_dates = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
+            available_dates = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
 
         except TimeoutException:
             print("TimeoutException: Element not found")
@@ -75,7 +120,7 @@ def process_month(driver, reservations):
             select_court = Select(select_court_field)
 
             try:
-                available_times = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.XPATH, "//td[text()='예약가능']/preceding-sibling::td")))
+                available_times = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.XPATH, "//td[text()='예약가능']/preceding-sibling::td")))
             except TimeoutException:
                 print("No available times found.")
                 available_times = []
@@ -91,76 +136,7 @@ def process_month(driver, reservations):
                         if court not in reservations[date]['courts']:
                             reservations[date]['courts'][court] = []
                         reservations[date]['courts'][court].append(time_text)
-
-@app.route('/reserve')
-def reserve_tennis_court():
-    global last_run_time, reservations
-    query_start_time = datetime.datetime.now()
-
-    # 함수 내용을 이곳에 입력합니다.
-    from selenium import webdriver
-    from selenium.webdriver.chrome.service import Service
-    from webdriver_manager.chrome import ChromeDriverManager
-    from selenium.webdriver.common.action_chains import ActionChains
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait, Select
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
-    import time
-
-    driver_path = '/Users/1112231/Downloads/chromedriver_mac_arm64/chromedriver'
-
-    service = Service(driver_path)
-
-    driver = webdriver.Chrome(service=service)
-    try:
-
-        url = "https://www.ycs.or.kr/fmcs/133"
-        driver.get(url)
-
-        username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
-        username_field.send_keys("ryoukiding")
-
-        password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
-        password_field.send_keys("dlrtjd110$")
-
-        time.sleep(2)
-
-        login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
-        login_button.click()
-
-        try:
-            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#process_logout")))
-
-        except UnexpectedAlertPresentException:
-            alert = driver.switch_to.alert
-            print("Alert shows: " + alert.text)
-            alert.accept()
-
-        url = "https://www.ycs.or.kr/fmcs/4"
-        driver.get(url)
-
-        select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
-        select_field.select_by_value("YCS04")
-        time.sleep(2)
-
-        wait = WebDriverWait(driver, 3)
-        
-        reservations = {}
-        # 5월에 대한 코트 예약 조회
-        process_month(driver, reservations)
-        # 다음 달 (6월)로 이동
-    #    next_month_button = driver.find_element_by_css_selector(".next-month-button")
-        next_month_button = driver.find_element(By.ID, 'next_month')
-        next_month_button.click()
-        time.sleep(10)
-
-        # 6월에 대한 코트 예약 조회
-        process_month(driver, reservations)
-    finally:
-        driver.quit()
-
-#    driver.quit()
+    driver.quit()
 
     query_end_time = datetime.datetime.now()
     conn = sqlite3.connect('app.db')
@@ -197,7 +173,7 @@ def result():
     return render_template('results.html', 
                            reservations=reservations, 
                            last_run_time=last_run_time,
-                           execution_frequency="20minutes",
+                           execution_frequency="30 minutes",
                            query_start_time=query_start_time,
                            query_end_time=query_end_time)
 
