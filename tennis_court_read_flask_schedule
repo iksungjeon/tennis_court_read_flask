@@ -150,13 +150,12 @@ def reserve_tennis_court():
         # 5월에 대한 코트 예약 조회
         process_month(driver, reservations)
         # 다음 달 (6월)로 이동
-    #    next_month_button = driver.find_element_by_css_selector(".next-month-button")
-        next_month_button = driver.find_element(By.ID, 'next_month')
-        next_month_button.click()
-        time.sleep(10)
+####        next_month_button = driver.find_element(By.ID, 'next_month')
+####        next_month_button.click()
+####        time.sleep(10)
 
         # 6월에 대한 코트 예약 조회
-        process_month(driver, reservations)
+####        process_month(driver, reservations)
     finally:
         driver.quit()
 
@@ -197,7 +196,7 @@ def result():
     return render_template('results.html', 
                            reservations=reservations, 
                            last_run_time=last_run_time,
-                           execution_frequency="20minutes",
+                           execution_frequency="10minutes",
                            query_start_time=query_start_time,
                            query_end_time=query_end_time)
 
