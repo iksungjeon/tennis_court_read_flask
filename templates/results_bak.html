@@ -8,51 +8,81 @@
             background-color: #000;
             colspan: 3;
         }
+        .red-text {
+            color: red;
+        }
+        tr {
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <h1>Tennis Court Reservations</h1>
-    <p>테린이(테친자)들에게 코트기회는 소중한 것.. </p>
-    <p>아직은 캘린더 하나만(5월) "예약가능" 코트 조회가능해요! 그래서 6월은 못가져오는데..😫 (아마!)나중에 추가 할게요~</p>
-    <p>일과 시간을 즐기면서 목테 예약에 도움이 되면 좋겠고 🎾 대체적으로 아침 9시부터 오후 6시 사이에 동작하니 참고해주세요.</p>
-    <h2>Last run time: {{ last_run_time }}</h2>
-    <h3>조회주기 : {{ execution_frequency }}</h3>
-    <h4>Query 시작 : {{ query_start_time }}</h4> <!-- 추가된 부분 -->
-    <h4>Query 종료 : {{ query_end_time }}</h4> <!-- 추가된 부분 -->
+    <p>테린이들에게 코트기회는 소중한 것.. 일과 휴식시간을 즐기면서 목테 예약에 도움이 되면 좋겠습니당 🎾</p>
+    <p>3분 정도면 정보를 가져오는 것 같으니, last run time 참고해서 필요하면 수동조회 수행하세요 ☺️</p>
+    <p>(무료툴들을 사용해서 가끔 주소가 변경되고 주로 제가 일할때 접근 가능하니 필요하면 연락주세요!~)</p>
+    <table>
+        <tr>
+            <tr class="date-divider"><td colspan="3"></td></tr>
+            <th>수동조회 API</th>
+            <td>/reserve (ex. https://01d4-203-236-8-208.ngrok-free.app/reserve)</td>
+        </tr>
+        <tr>
+            <th>조회주기(9-22)</th>
+            <td>{{ execution_frequency }}</td>
+        </tr>
+        <tr>
+            <th>Query 시작</th>
+            <td>{{ query_start_time }}</td>
+        </tr>
+        <tr>
+            <th>Query 종료</th>
+            <td>{{ query_end_time }}</td>
+        </tr>
+        <tr>
+            <th>Last run time</th>
+            <td>{{ last_run_time }}</td>
+            <tr class="date-divider"><td colspan="3"></td></tr>
+        </tr>
+    </table>
     <table>
         <tr>
             <th>Date</th>
             <th>Court</th>
             <th>Time</th>
         </tr>
-        {% for date, courts in reservations.items() %}
+        {% for date, info in reservations.items() %}
             {% set row_span = [0] %}
-            {% for court, times in courts.items() %}
+            {% for court, times in info['courts'].items() %}
                 {% for time in times %}
                     {% set _ = row_span.append(row_span.pop() + 1) %}
                 {% endfor %}
             {% endfor %}
             {% set first_row = [True] %}
-            {% for court, times in courts.items() %}
+            {% for court, times in info['courts'].items() %}
                 {% for time in times %}
+                    {% set time_color = '' %}
+                    {% set time_hour = time[:2]|int %}
+                    {% if (time_hour >= 6 and time_hour < 9) or (time_hour >= 18 and time_hour < 22) %}
+                        {% set time_color = 'red-text' %}
+                    {% endif %}
                     {% if first_row[0] %}
                         <tr>
-                            <!-- 이 부분이 변했습니다: -->
-                            <td rowspan="{{ row_span[0] }}">{{ date }} ({{ date | day_of_week }})</td>
-                            <td>{{ court }}</td>
-                            <td>{{ time }}</td>
+                            <td rowspan="{{ row_span[0] }}">{{ date }} ({{ info['weekday'] }})</td> <!-- 날짜와 요일 표시 -->
+                            <td>{{ court }}</td> <!-- 코트 표시 -->
+                            <td class="{{ time_color }}">{{ time }}</td> <!-- 시간 표시 -->
                         </tr>
                         {% set _ = first_row.pop() %}
                         {% set _ = first_row.append(False) %}
                     {% else %}
                         <tr>
-                            <td>{{ court }}</td>
-                            <td>{{ time }}</td>
+                            <td>{{ court }}</td> <!-- 코트 표시 -->
+                            <td class="{{ time_color }}">{{ time }}</td> <!-- 시간 표시 -->
                         </tr>
                     {% endif %}
                 {% endfor %}
             {% endfor %}
-            <tr class="date-divider"><td colspan="3"></td></tr>
+            <tr class="date-divider"><td colspan="3"></td></tr> <!-- 날짜 간 구분자 -->
         {% endfor %}
     </table>
 </body>

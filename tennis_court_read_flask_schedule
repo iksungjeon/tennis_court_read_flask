@@ -149,13 +149,13 @@ def reserve_tennis_court():
         reservations = {}
         # 5월에 대한 코트 예약 조회
         process_month(driver, reservations)
-        # 다음 달 (6월)로 이동
-####        next_month_button = driver.find_element(By.ID, 'next_month')
-####        next_month_button.click()
-####        time.sleep(10)
+        # 다음 달 달6월)로 이동
+        next_month_button = driver.find_element(By.ID, 'next_month')
+        next_month_button.click()
+        time.sleep(10)
 
-        # 6월에 대한 코트 예약 조회
-####        process_month(driver, reservations)
+        # 다음달에 대한 코트 예약 조회
+        process_month(driver, reservations)
     finally:
         driver.quit()
 
