@@ -11,6 +11,9 @@
         .red-text {
             color: red;
         }
+        .weekend-text {
+            color: red;
+        }
         tr {
             text-align: left;
         }
@@ -66,9 +69,13 @@
                     {% if (time_hour >= 6 and time_hour < 9) or (time_hour >= 18 and time_hour < 22) %}
                         {% set time_color = 'red-text' %}
                     {% endif %}
+                    {% set date_color = '' %}
+                    {% if info['weekday'] in ['토', '일'] %} <!-- 토요일이나 일요일이면 셀 색깔을 빨간색으로 변경 -->
+                        {% set date_color = 'weekend-text' %}
+                    {% endif %}
                     {% if first_row[0] %}
                         <tr>
-                            <td rowspan="{{ row_span[0] }}">{{ date }} ({{ info['weekday'] }})</td> <!-- 날짜와 요일 표시 -->
+                            <td rowspan="{{ row_span[0] }}" class="{{ date_color }}">{{ date }} ({{ info['weekday'] }})</td> <!-- 날짜와 요일 표시 -->
                             <td>{{ court }}</td> <!-- 코트 표시 -->
                             <td class="{{ time_color }}">{{ time }}</td> <!-- 시간 표시 -->
                         </tr>
