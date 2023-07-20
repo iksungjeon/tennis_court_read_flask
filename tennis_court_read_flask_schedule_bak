@@ -1,12 +1,22 @@
 from flask import Flask, render_template
 import datetime
 import sqlite3
+import re
 from selenium.common.exceptions import StaleElementReferenceException
+from dhooks import Webhook
 
 app = Flask(__name__)
 
 last_run_time = None
 reservations = {}
+
+
+#디스코드 웹훅을 사용하여 메시지를 보냅니다
+def send_discord_notification(message):
+    hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
+    hook = Webhook(hook_url)
+    hook.send(message)
+
 
 # 날짜를 받아서 요일을 반환하는 함수를 정의합니다.
 def get_day_of_week(date):
@@ -179,6 +189,8 @@ def reserve_tennis_court():
 
     return 'Reserve job done.'
 
+
+
 @app.route('/result')
 def result():
     conn = sqlite3.connect('app.db')
@@ -193,6 +205,31 @@ def result():
     query_end_time = query_times[1]
 
     conn.close()
+    
+    
+    # 'reservations' dict에서 빨간색으로 표시된 시간대에 해당하는 예약만 수집합니다.
+    red_time_reservations = {}
+    time_pattern = re.compile(r'^\d{2}:\d{2}~\d{2}:\d{2}$')  # 시간 패턴에 대한 정규 표현식
+
+    for date, info in reservations.items():
+        for court, times in info['courts'].items():
+            # 회차와 시간 정보가 번갈아 저장된 리스트에서 시간 정보만 추출합니다.
+            times_only = [time for i, time in enumerate(times) if i % 2 != 0]
+            red_times = [time for time in times_only if time_pattern.match(time) and ((6 <= int(time[:2]) < 9) or (19 <= int(time[6:8]) < 22))]
+
+            # red_times 값을 출력합니다.
+            print(f"날짜: {date}, 코트: {court}, 빨간색 시간대: {red_times}")
+
+            if red_times:
+                if date not in red_time_reservations:
+                    red_time_reservations[date] = {'weekday': info['weekday'], 'courts': {}}
+                red_time_reservations[date]['courts'][court] = red_times
+
+    # 빨간색으로 표시된 시간대의 예약 정보를 디스코드에 보냅니다.
+    for date, info in red_time_reservations.items():
+        for court, times in info['courts'].items():
+            message = f"날짜: {date}, 요일: {info['weekday']}, 코트: {court}, 시간: {', '.join(times)}"
+            send_discord_notification(message)
 
     return render_template('results.html', 
                            reservations=reservations, 
