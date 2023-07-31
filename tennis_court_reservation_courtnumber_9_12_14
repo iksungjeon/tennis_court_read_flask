@@ -25,7 +25,7 @@ driver.get(url)
 
 # 로그인 정보를 입력하고 로그인 버튼을 누릅니다.
 username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
-username_field.send_keys("hmnisaws")
+username_field.send_keys("ryoukiding")
 password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
 password_field.send_keys("dlrtjd110$")
 login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
@@ -47,7 +47,7 @@ time.sleep(2)
         
 
 # 원하는 실행 시간을 설정합니다.
-desired_time = datetime.time(hour=15, minute=24, second=0)
+desired_time = datetime.time(hour=9, minute=0, second=1)
 
 # 현재 시간이 원하는 시간이 될 때까지 대기합니다.
 while True:
@@ -59,7 +59,7 @@ while True:
             
 # 원하는 코트를 선택합니다.
 select_court_field = Select(driver.find_element(By.ID, "place"))
-select_court_field.select_by_value("14")
+select_court_field.select_by_value("9")
 
 # 현재 날짜를 얻고 7일을 더합니다.
 date_in_7_days = datetime.date.today() + datetime.timedelta(days=7)
@@ -71,11 +71,9 @@ date_str = date_in_7_days.strftime('%Y%m%d')
 date_field = driver.find_element(By.CSS_SELECTOR, f"#date-{date_str} > strong")
 date_field.click()
 time.sleep(1)
-#print("원하는 날짜를 선택함.")
-
 
 # 원하는 시간대를 선택합니다.
-desired_time_slots = ["#checkbox_time_2", "#checkbox_time_3"]  # 각 시간대에 해당하는 CSS 선택자
+desired_time_slots = ["#checkbox_time_0", "#checkbox_time_1"]  # 각 시간대에 해당하는 CSS 선택자
 for time_slot in desired_time_slots:
     time_slot_checkbox = driver.find_element(By.CSS_SELECTOR, time_slot)
     time_slot_checkbox.click()
@@ -103,6 +101,8 @@ participants_field = driver.find_element(By.ID, "users")
 participants_field.send_keys("2")
 # 전화번호 필드를 찾습니다.
 phone_field = driver.find_element(By.ID, "tel")
+# 필드의 내용을 지웁니다.
+phone_field.clear()
 # 전화번호를 입력합니다.
 phone_field.send_keys("010-4086-9004")
 # 이용목적 필드를 찾습니다.
