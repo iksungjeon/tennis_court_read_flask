@@ -51,7 +51,7 @@ password = input("Please enter your password: ")
 desired_time = input("Please enter your desired time (HH:MM:SS): ")
 desired_court = input("Please enter your desired court number: ")
 # 사용자로부터 필요한 정보를 입력받습니다.
-desired_time_slots = input("Please enter your desired time slots (코트별로 다르니 사전확인필요 (ex : 0=06:00))(separated by a comma): ")
+desired_time_slots = input("Please enter your desired time slots (코트별로 다르니 사전확인필요 (ex : 9번코트 0=06:00))(separated by a comma): ")
 # 사용자 입력을 리스트로 변환합니다.
 desired_time_slots = desired_time_slots.split(",")
 # 리스트의 각 요소(시간대 입력)을 변환된 ID로 교체합니다.
