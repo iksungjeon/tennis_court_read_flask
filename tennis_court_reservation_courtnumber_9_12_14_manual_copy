@@ -1,0 +1,125 @@
+# 필요한 모듈을 import합니다.
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
+import time
+import datetime
+
+# 웹드라이버 경로를 설정합니다.
+driver_path = '/Users/1112231/Downloads/chromedriver_mac_arm64_114/chromedriver'
+
+# 웹드라이버 서비스를 생성합니다.
+service = Service(driver_path)
+
+# 크롬 웹드라이버를 실행합니다.
+driver = webdriver.Chrome(service=service)
+
+# 웹사이트에 접속합니다.
+url = "https://www.ycs.or.kr/fmcs/133"
+driver.get(url)
+
+# 로그인 정보를 입력하고 로그인 버튼을 누릅니다.
+username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
+username_field.send_keys("hmnisaws")
+password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
+password_field.send_keys("dlrtjd110$")
+login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
+login_button.click()
+
+# 예약 페이지로 이동합니다.
+url = "https://www.ycs.or.kr/fmcs/4"
+driver.get(url)
+
+# 원하는 센터를 선택합니다.
+select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
+select_field.select_by_value("YCS04")
+time.sleep(2)
+
+# 다음달 이동
+next_month_button = driver.find_element(By.ID, 'next_month')
+next_month_button.click()
+time.sleep(2)
+        
+# 이전달 이동
+next_month_button = driver.find_element(By.ID, 'prev_month')
+next_month_button.click()
+time.sleep(2)
+
+# 원하는 실행 시간을 설정합니다.
+desired_time = datetime.time(hour=9, minute=30, second=0)
+
+# 현재 시간이 원하는 시간이 될 때까지 대기합니다.
+while True:
+    current_time = datetime.datetime.now().time()
+    if current_time >= desired_time:
+        break
+    else:
+        time.sleep(1)  # CPU 사용량을 줄이기 위해 1초 동안 잠깁니다.
+            
+# 원하는 코트를 선택합니다.
+select_court_field = Select(driver.find_element(By.ID, "place"))
+select_court_field.select_by_value("14")
+# 현재 날짜를 얻고 7일을 더합니다.
+date_in_7_days = datetime.date.today() + datetime.timedelta(days=7)
+
+# 날짜를 적절한 형식의 문자열로 변환합니다.
+date_str = date_in_7_days.strftime('%Y%m%d')
+
+# 해당 날짜를 선택합니다.
+date_field = driver.find_element(By.CSS_SELECTOR, f"#date-{date_str} > strong")
+date_field.click()
+time.sleep(1)
+
+# 원하는 시간대를 선택합니다.
+desired_time_slots = ["#checkbox_time_7"]  # 각 시간대에 해당하는 CSS 선택자
+for time_slot in desired_time_slots:
+    time_slot_checkbox = driver.find_element(By.CSS_SELECTOR, time_slot)
+    time_slot_checkbox.click()
+    
+# 휴대폰 인증 버튼을 클릭합니다.
+phone_verification_button = driver.find_element(By.XPATH, "//button[text()='신청자 휴대폰 인증']")
+phone_verification_button.click()
+# 사용자 입력 대기 (이 곳에서 스크립트 실행이 멈춥니다)
+input("QR 인증을 진행한 후 대관신청 진행을 하세요. 아무 키나 누르세요...")
+
+# 대관신청 버튼을 찾습니다.
+booking_button = driver.find_element(By.XPATH, "//button[text()='대관신청']")
+# 대관신청 버튼을 클릭합니다.
+booking_button.click()
+# 사용자 입력 대기 (이 곳에서 스크립트 실행이 멈춥니다)
+input("정보입력 진행을 위해 아무 키나 누르세요...")
+
+# 대표자명 필드를 찾습니다.
+team_name_field = driver.find_element(By.ID, "team_nm")
+# 대표자명을 입력합니다.
+team_name_field.send_keys("전익성")
+# 참가인원 필드를 찾습니다.
+participants_field = driver.find_element(By.ID, "users")
+# 참가인원을 입력합니다.
+participants_field.send_keys("2")
+# 전화번호 필드를 찾습니다.
+phone_field = driver.find_element(By.ID, "tel")
+# 필드의 내용을 지웁니다.
+phone_field.clear()
+# 전화번호를 입력합니다.
+phone_field.send_keys("010-4086-9004")
+# 이용목적 필드를 찾습니다.
+purpose_field = driver.find_element(By.ID, "purpose")
+# 이용목적을 입력합니다.
+purpose_field.send_keys("테니스")
+# 동의하기 체크박스를 찾아 클릭합니다.
+agree_checkbox = driver.find_element(By.ID, "agree_use1")
+agree_checkbox.click()
+# 휴대폰 인증 버튼을 찾아 클릭합니다.
+phone_verification_button = driver.find_element(By.XPATH, "//button[text()='신청자 휴대폰 인증']")
+phone_verification_button.click()
+
+# 사용자 입력 대기 (이 곳에서 스크립트 실행이 멈춥니다)
+input("휴대폰 인증을 진행한 후 예약 등록진행 완료하세요. 아무 키나 누르세요...")
+
+driver.quit()

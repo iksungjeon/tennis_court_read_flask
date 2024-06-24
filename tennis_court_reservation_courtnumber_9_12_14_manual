@@ -9,10 +9,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
 import time
 import datetime
-import re
 
 # 웹드라이버 경로를 설정합니다.
-driver_path = '/Users/1112231/Downloads/chromedriver_mac_arm64_114/chromedriver'
+driver_path = '/Users/1112231/Downloads/chromedriver-mac-arm64_119/chromedriver'
 
 # 웹드라이버 서비스를 생성합니다.
 service = Service(driver_path)
@@ -24,53 +23,20 @@ driver = webdriver.Chrome(service=service)
 url = "https://www.ycs.or.kr/fmcs/133"
 driver.get(url)
 
-# 시간대 입력 변환을 위한 사전(dictionary)을 생성합니다.
-time_slot_dict = {
-    "0": "checkbox_time_0",
-    "1": "checkbox_time_1",
-    "2": "checkbox_time_2",
-    "3": "checkbox_time_3",
-    "4": "checkbox_time_4",
-    "5": "checkbox_time_5",
-    "6": "checkbox_time_6",
-    "7": "checkbox_time_7",
-    "8": "checkbox_time_8",
-    "9": "checkbox_time_9",
-    "10": "checkbox_time_10",
-    "11": "checkbox_time_11",
-    "12": "checkbox_time_12",
-    "13": "checkbox_time_13",
-    "14": "checkbox_time_14",
-    "15": "checkbox_time_15",
-}
-
-
-# 사용자 입력을 받습니다.
-username = input("Please enter your username: ")
-password = input("Please enter your password: ")
-desired_time = input("Please enter your desired time (HH:MM:SS): ")
-desired_court = input("Please enter your desired court number: ")
-# 사용자로부터 필요한 정보를 입력받습니다.
-desired_time_slots = input("Please enter your desired time slots (코트별로 다르니 사전확인필요 (ex : 9번코트 0=06:00))(separated by a comma): ")
-# 사용자 입력을 리스트로 변환합니다.
-desired_time_slots = desired_time_slots.split(",")
-# 리스트의 각 요소(시간대 입력)을 변환된 ID로 교체합니다.
-desired_time_slots = [time_slot_dict[slot.strip()] for slot in desired_time_slots]
-representative_name = input("대표자명을 입력하세요: ")
-phone_number = input("전화번호를 입력하세요 (예시: 010-4086-9004): ")
-
 # 로그인 정보를 입력하고 로그인 버튼을 누릅니다.
 username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
-username_field.send_keys(username)
+username_field.send_keys("ryoukiding")
+#username_field.send_keys("rkdtjrdl93")
 password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
-password_field.send_keys(password)
+password_field.send_keys("dlrtjd110$")
+#password_field.send_keys("xkzn1029?!")
 login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
 login_button.click()
-
+time.sleep(2)
 # 예약 페이지로 이동합니다.
 url = "https://www.ycs.or.kr/fmcs/4"
 driver.get(url)
-
+time.sleep(2)
 # 원하는 센터를 선택합니다.
 select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
 select_field.select_by_value("YCS04")
@@ -81,9 +47,18 @@ next_month_button = driver.find_element(By.ID, 'next_month')
 next_month_button.click()
 time.sleep(2)
         
+# 이전달 이동
+next_month_button = driver.find_element(By.ID, 'prev_month')
+next_month_button.click()
+time.sleep(5)
 
-# 입력을 datetime.time 객체로 변환합니다.
-desired_time = datetime.datetime.strptime(desired_time, "%H:%M:%S").time()
+## 다음달 이동
+#next_month_button = driver.find_element(By.ID, 'next_month')
+#next_month_button.click()
+#time.sleep(2)
+
+# 원하는 실행 시간을 설정합니다.
+desired_time = datetime.time(hour=9, minute=30, second=0)
 
 # 현재 시간이 원하는 시간이 될 때까지 대기합니다.
 while True:
@@ -95,8 +70,7 @@ while True:
             
 # 원하는 코트를 선택합니다.
 select_court_field = Select(driver.find_element(By.ID, "place"))
-select_court_field.select_by_value(desired_court)
-
+select_court_field.select_by_value("14")
 # 현재 날짜를 얻고 7일을 더합니다.
 date_in_7_days = datetime.date.today() + datetime.timedelta(days=7)
 
@@ -109,8 +83,9 @@ date_field.click()
 time.sleep(1)
 
 # 원하는 시간대를 선택합니다.
+desired_time_slots = ["#checkbox_time_13", "#checkbox_time_14"]  # 각 시간대에 해당하는 CSS 선택자
 for time_slot in desired_time_slots:
-    time_slot_checkbox = driver.find_element(By.CSS_SELECTOR, f'#{time_slot.strip()}')  # 공백 제거
+    time_slot_checkbox = driver.find_element(By.CSS_SELECTOR, time_slot)
     time_slot_checkbox.click()
     
 # 휴대폰 인증 버튼을 클릭합니다.
@@ -129,8 +104,8 @@ input("정보입력 진행을 위해 아무 키나 누르세요...")
 # 대표자명 필드를 찾습니다.
 team_name_field = driver.find_element(By.ID, "team_nm")
 # 대표자명을 입력합니다.
-team_name_field = driver.find_element(By.ID, "team_nm")
-team_name_field.send_keys(representative_name)
+team_name_field.send_keys("전익성")
+#team_name_field.send_keys("김강석")
 # 참가인원 필드를 찾습니다.
 participants_field = driver.find_element(By.ID, "users")
 # 참가인원을 입력합니다.
@@ -140,9 +115,7 @@ phone_field = driver.find_element(By.ID, "tel")
 # 필드의 내용을 지웁니다.
 phone_field.clear()
 # 전화번호를 입력합니다.
-phone_field = driver.find_element(By.ID, "tel")
-phone_field.clear()
-phone_field.send_keys(phone_number)
+phone_field.send_keys("010-4086-9004")
 # 이용목적 필드를 찾습니다.
 purpose_field = driver.find_element(By.ID, "purpose")
 # 이용목적을 입력합니다.

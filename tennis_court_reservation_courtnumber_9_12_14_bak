@@ -11,7 +11,7 @@ import time
 import datetime
 import os
 from selenium.webdriver.common.alert import Alert
-
+from selenium.common.exceptions import TimeoutException
 
 app = Flask(__name__)
 app.secret_key = 'somesecretkey'  
@@ -21,18 +21,6 @@ global driver, main_window_handle, second_main_window_handle
 driver = None
 main_window_handle = None
 second_main_window_handle = None
-
-
-def handle_alert():
-    try:
-        wait = WebDriverWait(driver, 5)
-        alert = wait.until(EC.alert_is_present())
-        alert.accept()
-    except TimeoutException:
-        print("경고창이 나타나지 않았습니다.")
-    except NoSuchWindowException:
-        print("The target window or tab was not found!")
-
 
 drivers = {}  # 각 세션에 대한 드라이버 저장
 @app.route('/start_session')
@@ -64,7 +52,7 @@ def make_reservation():
     session['phone'] = phone
 
     try:
-        driver_path = '/Users/1112231/Downloads/chromedriver-mac-arm64_116/chromedriver'
+        driver_path = '/Users/1112231/Downloads/chromedriver-mac-x64_116/chromedriver'
         service = Service(driver_path)
 
         # 크롬 웹드라이버를 실행합니다.
@@ -89,29 +77,27 @@ def make_reservation():
         # 원하는 센터를 선택합니다.
         select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
         select_field.select_by_value("YCS04")
-        wait = WebDriverWait(driver, 2)
-        
+        time.sleep(2)
+
         # 다음달 이동
         next_month_button = driver.find_element(By.ID, 'next_month')
         next_month_button.click()
-        wait = WebDriverWait(driver, 2) 
-                       
+        time.sleep(2)
+                
         # 이전달 이동
         next_month_button = driver.find_element(By.ID, 'prev_month')
         next_month_button.click()
-        time.sleep(4)
-#        wait = WebDriverWait(driver, 4)
-        
+        time.sleep(2)
+
         while True:
             current_time = datetime.datetime.now().time()
             if current_time >= desired_time:
                 break
             else:
                 time.sleep(1)  # CPU 사용량을 줄이기 위해 1초 동안 잠깁니다.
-#        time.sleep(4)
+               
         select_court_field = Select(driver.find_element(By.ID, "place"))
         select_court_field.select_by_value(court_number) # 코트 번호로 선택
-
 
         # 현재 날짜를 얻고 7일을 더합니다.
         date_in_7_days = datetime.date.today() + datetime.timedelta(days=7)
@@ -123,11 +109,9 @@ def make_reservation():
         date_field = driver.find_element(By.CSS_SELECTOR, f"#date-{date_str} > strong")
         date_field.click()
         time.sleep(1)
-#        wait = WebDriverWait(driver, 1)
-        
+
         main_window_handle = driver.current_window_handle
-        wait = WebDriverWait(driver, 3)        
-#        time.sleep(3)
+
         # 원하는 시간대를 선택합니다.
         for time_slot in desired_time_slots:
             time_slot_checkbox = driver.find_element(By.CSS_SELECTOR, "#" + time_slot)
@@ -136,9 +120,7 @@ def make_reservation():
         # 휴대폰 인증 버튼을 클릭합니다.
         phone_verification_button = driver.find_element(By.XPATH, "//button[text()='신청자 휴대폰 인증']")
         phone_verification_button.click()
-#        time.sleep(3)
-        wait = WebDriverWait(driver, 1)
-        
+        time.sleep(3)
         return redirect(url_for('qr_authentication'))
     
     except Exception as e:
@@ -151,6 +133,8 @@ def make_reservation():
 @app.route('/qr_authentication', methods=['GET'])
 def qr_authentication():
     global driver
+    if driver is None:
+        return "Driver not initialized", 500
 
     # 새 창으로 전환합니다.
     window_handles = driver.window_handles
@@ -161,21 +145,16 @@ def qr_authentication():
         qr_activation_image = driver.find_element(By.CSS_SELECTOR, "#pattern_inactive")
         driver.execute_script("arguments[0].click();", qr_activation_image)
     except UnexpectedAlertPresentException:
-        handle_alert()  # 경고창이 나타날 경우 처리
-    except Exception as e:
-        return f"Error during QR activation: {str(e)}", 500
+        # 알림을 닫고 오류 처리를 추가합니다.
+        alert = driver.switch_to.alert
+        alert.accept()
 
-    try:
-        qr_code_image = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "img#qr_box"))
-        )
-    except Exception as e:
-        return f"Error locating QR code image: {str(e)}", 500
+    # QR 코드를 추출합니다.
+    qr_code_image = driver.find_element(By.CSS_SELECTOR, "img#qr_box")
 
     # 해당 웹 요소의 스크린샷을 이미지 파일로 저장합니다.
     image_path = os.path.join('static', 'temp_qr_code.png')
     qr_code_image.screenshot(image_path)
-
     # HTML 템플릿에 이미지 경로를 전달하여 렌더링합니다.
     return render_template('qr_code.html', qr_code_url=image_path)
 
@@ -195,7 +174,10 @@ def receive_qr_key():
     auth_button = driver.find_element(By.CSS_SELECTOR, "#container_qr > div.mt-2 > div.button_contents.mt-4 > div > div.col-3 > button")
     auth_button.click()
 
-    handle_alert()  # 경고창이 나타날 경우 처리
+    wait = WebDriverWait(driver, 10)
+    alert = wait.until(EC.alert_is_present())
+    alert = Alert(driver)
+    alert.accept()
 
     return redirect(url_for('continue_reservation'))
 
@@ -213,8 +195,11 @@ def continue_reservation():
         booking_button.click()
 
         
-        handle_alert()  # 경고창이 나타날 경우 처리
- 
+        wait = WebDriverWait(driver, 10)
+        alert = wait.until(EC.alert_is_present())
+        alert = Alert(driver)
+        alert.accept()
+        
         # 사용자 입력 대기 (이 곳에서 스크립트 실행이 멈춥니다)
         second_main_window_handle = driver.current_window_handle
         
@@ -245,13 +230,20 @@ def continue_reservation():
             driver.execute_script("arguments[0].click();", message_activation_image)
         except UnexpectedAlertPresentException:
             # 알림을 닫고 오류 처리를 추가합니다.
-            handle_alert()  # 경고창이 나타날 경우 처리
+            alert = driver.switch_to.alert
+            alert.accept()
+            # 필요한 경우 여기에 추가 오류 처리를 구현합니다.
 
         # 사용자 입력 대기 (이 곳에서 스크립트 실행이 멈춥니다)
         input("휴대폰 인증을 진행한 후 예약 등록진행 완료하세요. 아무 키나 누르세요...")
         
-        handle_alert()  # 경고창이 나타날 경우 처리
 
+        try:
+            alert = driver.switch_to.alert
+            print(alert.text) # 알림 메시지를 출력하거나 로깅
+            alert.accept()    # 알림을 닫습니다.
+        except NoAlertPresentException:
+            print("No alert present") # 알림이 없는 경우 처리
     
         # 예약이 완료되면 성공 메시지 반환
         return jsonify({'status': 'success', 'message': 'Reservation continued'})
@@ -263,19 +255,39 @@ def continue_reservation():
 def send_phone_number():
     global driver
     phone_number = request.json['phone_number']
+    # 휴대폰 번호 전송과 관련된 로직
     # 휴대폰 번호 입력
     wait = WebDriverWait(driver, 2)
-    # 휴대폰 번호 전송과 관련된 로직
+
     phone_number_field = driver.find_element(By.ID, "phone_number")
     phone_number_field = wait.until(EC.presence_of_element_located((By.ID, "phone_number")))
     phone_number_field.send_keys(phone_number)
     # 인증 번호 발송 버튼 클릭
     send_number_button = driver.find_element(By.CSS_SELECTOR, ".btn.btn-lg.btn-secondary")
     send_number_button.click()
-  
-    handle_alert()  # 경고창이 나타날 경우 처리
-    handle_alert()  # 경고창이 나타날 경우 처리
-
+    
+    # Alert 창이 뜰 때까지 대기
+    wait = WebDriverWait(driver, 10)
+    alert = wait.until(EC.alert_is_present())
+    # Alert 객체 생성
+    alert = Alert(driver)
+    # Alert 창의 확인 버튼 클릭
+    alert.accept()
+    
+    # Alert 창이 뜰 때까지 대기
+    wait = WebDriverWait(driver, 10)
+    alert = wait.until(EC.alert_is_present())
+    # Alert 객체 생성
+    alert = Alert(driver)
+    # Alert 창의 확인 버튼 클릭
+    alert.accept()
+        
+    try:
+        alert = wait.until(EC.alert_is_present())
+    except TimeoutException:
+        # 예외가 발생했을 때 수행할 코드
+        pass
+    
     return jsonify({'status': 'success', 'message': 'Verification code sent'})
 
 @app.route('/verify_phone_number', methods=['POST'])
@@ -291,11 +303,20 @@ def verify_phone_number():
     wait.until(EC.text_to_be_present_in_element_value((By.ID, "check_number"), verification_code_field.get_attribute('value')))
     # 인증번호 입력 칸에 수신된 인증번호 입력
     verification_code_field.send_keys(verification_code)
+   # time.sleep(60) 
     # 인증 버튼 클릭
     verify_button = driver.find_element(By.XPATH, "//b[text()='인증']")
     verify_button.click()
 
-    handle_alert()  # 경고창이 나타날 경우 처리
+    # Alert 창이 뜰 때까지 최대 10초 동안 대기합니다.
+    wait = WebDriverWait(driver, 20)
+    try:
+        alert = wait.until(EC.alert_is_present())
+        alert = Alert(driver)
+        alert.accept() # Alert 창의 확인 버튼을 클릭합니다.
+    except TimeoutException:
+        print("경고창이 나타나지 않았습니다.")
+
 
     return jsonify({'status': 'success', 'message': 'Phone authentication completed'})
 
@@ -304,44 +325,27 @@ def complete_reservation():
     global second_main_window_handle
 
     driver.switch_to.window(second_main_window_handle)
-    wait = WebDriverWait(driver, 1)
 
-    handle_alert()  # 경고창이 나타날 경우 처리
+    # Alert 창이 나타나면 닫기
+    wait = WebDriverWait(driver, 1)
+    try:
+        alert = wait.until(EC.alert_is_present())
+        alert.accept()
+    except TimeoutException:
+        print("경고창이 나타나지 않았습니다.")
 
     reserve_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.action_write")))
     reserve_button.click()
 
-    handle_alert()  # 경고창이 나타날 경우 처리
+    try:
+        alert = driver.switch_to.alert
+        alert.accept()
+    except NoAlertPresentException:
+        pass
 
-    time.sleep(3)
-#    wait = WebDriverWait(driver, 3)
+    time.sleep(3) 
     driver.quit()    
     return jsonify(status='success', message='예약이 성공적으로 등록되었는지 홈페이지에서 확인하세요.')  # JSON 응답
-
-@app.route('/restart_session')
-def restart_session():
-    global driver
-    try:
-        if driver:
-            driver.quit()  # 웹드라이버 종료
-        return "Restarted"
-    except Exception as e:
-        return str(e)
-
-
-def parse_error_message(error_log):
-    if "\uc608\uc57d\uc81c\ud55c 1\ud68c\ub97c \ucd08\uacfc\ud558\uc600\uc2b5\ub2c8\ub2e4." in error_log:
-        return "예약횟수 1회를 초과하였습니다."
-    # 다른 에러 문자열도 추가 가능
-    # elif "다른 에러 문자열" in error_log:
-    #     return "사용자에게 보여줄 다른 에러 메시지"
-    else:
-        return "알 수 없는 오류가 발생하였습니다."
-
-error_log = """{"message":"Alert Text: ... (여기에 전체 로그 내용) ... ","status":"error"}"""
-user_message = parse_error_message(error_log)
-print(user_message)
-
 
 
 if __name__ == "__main__":

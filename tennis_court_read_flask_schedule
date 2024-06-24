@@ -15,6 +15,8 @@ reservations = {}
 def send_discord_notification(messages):
     hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
     hook = Webhook(hook_url)
+    if not messages or all(not m for m in messages):
+        return  # 메시지가 비어있거나 None이면 함수를 종료
     # 문자열을 합쳐서 한번에 전송합니다
     hook.send('\n'.join(messages))
 
@@ -123,7 +125,7 @@ def reserve_tennis_court():
     from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
     import time
 
-    driver_path = '/Users/1112231/Downloads/chromedriver_mac_arm64_114/chromedriver'
+    driver_path = '/Users/1112231/Downloads/chromedriver-mac-arm64_123/chromedriver'
 
     service = Service(driver_path)
 
@@ -163,9 +165,10 @@ def reserve_tennis_court():
         wait = WebDriverWait(driver, 3)
         
         reservations = {}
-        # 5월에 대한 코트 예약 조회
+        # 이번달에 대한 코트 예약 조회
         process_month(driver, reservations)
-        # 다음 달 달6월)로 이동
+       
+        # 다음달로 이동
         next_month_button = driver.find_element(By.ID, 'next_month')
         next_month_button.click()
         time.sleep(5)
@@ -175,7 +178,6 @@ def reserve_tennis_court():
     finally:
         driver.quit()
 
-#    driver.quit()
 
     query_end_time = datetime.datetime.now()
     conn = sqlite3.connect('app.db')
@@ -262,4 +264,4 @@ if __name__ == '__main__':
     conn.commit()
     conn.close()
 
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5005)

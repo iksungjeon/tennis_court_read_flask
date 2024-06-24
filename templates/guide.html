@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>목동 테니스 코트 예약</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        .container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        pre {
+            background: #e8e8e8;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px 0;
+        }
+        input {
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 14px 20px;
+            border: none;
+            cursor: pointer;
+            width: 50%;
+            font-size: 18px;
+            border-radius: 4px;
+            transition: opacity 0.3s ease;
+        }
+        button[type="submit"] {
+            margin-bottom: 20px;  /* 예약하기 버튼 아래에 20px의 간격 추가 */
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button#retry-button {
+            background-color: #FFC0CB;  /* 연한 붉은색 */
+            margin-up: 20px; /* "예약하기" 버튼과의 간격 */
+        }
+
+        button#retry-button:hover {
+            background-color: #FFAEB9;  /* 마우스 호버 시 더 연한 붉은색으로 */
+        }
+        
+        .time-slots {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .time-slot-row {
+            display: flex;
+            justify-content: flex-start;
+        }
+        
+        .time-slot {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        input {
+            padding: 5px;       
+            width: 50%;        
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+             
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>시간대 입력 변환사전(dictionary)</h1>
+        <label>* 1~10번 : 09시 오픈</label><br>
+        <label>* 11번~18번 : 09시 30분 오픈</label><br>
+          <tr>
+            <td colspan="6">
+                <img src="{{ url_for('static', filename='image.jpg') }}" style="width: 1400px; height: 450px;">
+            </td>
+          </tr>
+      
+          <form action="/make_reservation" method="get"> <!-- 메서드를 post에서 get으로 변경 -->
+            <h1>예약진행 정보 입력</h1> 
+            <label for="court_number">코트 번호를 입력하세요 (1-18):</label>
+            <input type="number" id="court_number" name="court_number" min="1" max="18" required>
+            <br>
+            <label>원하는 시간대를 선택하세요:</label><br>
+            <div class="time-slots">
+                {% for i in range(4) %} <!-- 4x4로 변경, 총 16개의 체크박스 -->
+                <div class="time-slot-row">
+                    {% for j in range(4) %}
+                    <div class="time-slot">
+                        <label for="checkbox_time_{{ i * 4 + j }}">checkbox_time_{{ i * 4 + j }}</label>
+                        <input type="checkbox" id="checkbox_time_{{ i * 4 + j }}" name="desired_time_slots" value="checkbox_time_{{ i * 4 + j }}">
+                    </div>
+                    {% endfor %}
+                    <br> <!-- 줄 바꿈 -->
+                </div>
+                {% endfor %}
+            </div>
+            
+            <label for="desired_time">(옵션) 원하는 실행 예약 시간을 설정</label>
+            <input type="time" id="desired_time" name="desired_time" value="09:00" required><br>
+
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br>
+            <label for="team_name">Name:</label>
+            <input type="text" id="team_name" name="team_name" required><br>
+            <label for="phone">Phone:</label>
+            <input type="text" id="phone" name="phone" pattern="010-[0-9]{4}-[0-9]{4}" placeholder="010-XXXX-XXXX" required>
+
+            <button type="submit">예약하기</button>
+
+            <button type="button" id="retry-button">예약 진행 초기화</button>
+            <script>
+                document.getElementById("retry-button").addEventListener("click", function() {
+                    fetch("/restart_session")
+                    .then(response => response.text())
+                    .then(data => {
+                        if(data === 'Restarted') {
+                            location.reload(); // 페이지를 새로고침하여 초기 상태로 돌아갑니다.
+                        }
+                    });
+                });
+            </script>
+            
+        </form>
+    </div>
+</body>
+</html>

@@ -21,6 +21,7 @@ global driver, main_window_handle, second_main_window_handle
 driver = None
 main_window_handle = None
 second_main_window_handle = None
+checkbox_elements = []  # 체크박스 요소들을 저장할 리스트
 
 
 def handle_alert():
@@ -94,13 +95,12 @@ def make_reservation():
         # 다음달 이동
         next_month_button = driver.find_element(By.ID, 'next_month')
         next_month_button.click()
-        wait = WebDriverWait(driver, 2) 
-                       
+        time.sleep(4)                 
+
         # 이전달 이동
         next_month_button = driver.find_element(By.ID, 'prev_month')
         next_month_button.click()
         time.sleep(4)
-#        wait = WebDriverWait(driver, 4)
         
         while True:
             current_time = datetime.datetime.now().time()
@@ -108,7 +108,7 @@ def make_reservation():
                 break
             else:
                 time.sleep(1)  # CPU 사용량을 줄이기 위해 1초 동안 잠깁니다.
-#        time.sleep(4)
+        time.sleep(4)
         select_court_field = Select(driver.find_element(By.ID, "place"))
         select_court_field.select_by_value(court_number) # 코트 번호로 선택
 
@@ -122,12 +122,20 @@ def make_reservation():
         # 해당 날짜를 선택합니다.
         date_field = driver.find_element(By.CSS_SELECTOR, f"#date-{date_str} > strong")
         date_field.click()
-        time.sleep(1)
+        time.sleep(3)
 #        wait = WebDriverWait(driver, 1)
         
         main_window_handle = driver.current_window_handle
-        wait = WebDriverWait(driver, 3)        
-#        time.sleep(3)
+        
+#        wait = WebDriverWait(driver, 3)        
+        time.sleep(3)
+
+        # 0부터 15까지의 체크박스를 대기하며 가져오기
+        for i in range(16):  
+            checkbox_id = f"checkbox_time_{i}"
+            checkbox_element = wait.until(EC.presence_of_element_located((By.ID, checkbox_id)))
+            checkbox_elements.append(checkbox_element)
+
         # 원하는 시간대를 선택합니다.
         for time_slot in desired_time_slots:
             time_slot_checkbox = driver.find_element(By.CSS_SELECTOR, "#" + time_slot)
@@ -248,7 +256,7 @@ def continue_reservation():
             handle_alert()  # 경고창이 나타날 경우 처리
 
         # 사용자 입력 대기 (이 곳에서 스크립트 실행이 멈춥니다)
-        input("휴대폰 인증을 진행한 후 예약 등록진행 완료하세요. 아무 키나 누르세요...")
+#        input("휴대폰 인증을 진행한 후 예약 등록진행 완료하세요. 아무 키나 누르세요...")
         
         handle_alert()  # 경고창이 나타날 경우 처리
 
@@ -345,4 +353,4 @@ print(user_message)
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5002)
+    app.run(host='0.0.0.0', port=5003)
