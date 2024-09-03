@@ -13,7 +13,8 @@ reservations = {}
 
 # 디스코드 웹훅을 사용하여 메시지를 보냅니다
 def send_discord_notification(messages):
-    hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
+#    hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
+    hook_url = "https://discord.com/api/webhooks/1280349674238120008/7TPHe5Cc62plTE7iFfhTFiM5FlW5uGqFuFV__KerpsK6aU8Kj8FcXfj-F1hPoZ8FDStw"
     hook = Webhook(hook_url)
     if not messages or all(not m for m in messages):
         return  # 메시지가 비어있거나 None이면 함수를 종료
@@ -125,7 +126,7 @@ def reserve_tennis_court():
     from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
     import time
 
-    driver_path = '/Users/1112231/Downloads/chromedriver-mac-arm64_123/chromedriver'
+    driver_path = '/Users/1112231/Downloads/chromedriver-mac-arm64_128/chromedriver'
 
     service = Service(driver_path)
 
