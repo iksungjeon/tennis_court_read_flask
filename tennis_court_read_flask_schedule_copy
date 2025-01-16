@@ -10,31 +10,16 @@ app = Flask(__name__)
 last_run_time = None
 reservations = {}
 
+
+# 디스코드 웹훅을 사용하여 메시지를 보냅니다
 def send_discord_notification(messages):
+#    hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
     hook_url = "https://discord.com/api/webhooks/1280349674238120008/7TPHe5Cc62plTE7iFfhTFiM5FlW5uGqFuFV__KerpsK6aU8Kj8FcXfj-F1hPoZ8FDStw"
     hook = Webhook(hook_url)
     if not messages or all(not m for m in messages):
-        print("No messages to send.")
-        return  # 메시지가 비어있으면 종료
-
-    # 메시지를 하나의 문자열로 합치기
-    combined_message = '\n'.join(messages)
-
-    # 디스코드 메시지 제한 (2000자)을 고려하여 분할 전송
-    MAX_MESSAGE_LENGTH = 2000
-    for i in range(0, len(combined_message), MAX_MESSAGE_LENGTH):
-        chunk = combined_message[i:i + MAX_MESSAGE_LENGTH]
-        hook.send(chunk)
-
-## 디스코드 웹훅을 사용하여 메시지를 보냅니다
-#def send_discord_notification(messages):
-##    hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
-#    hook_url = "https://discord.com/api/webhooks/1280349674238120008/7TPHe5Cc62plTE7iFfhTFiM5FlW5uGqFuFV__KerpsK6aU8Kj8FcXfj-F1hPoZ8FDStw"
-#    hook = Webhook(hook_url)
-#    if not messages or all(not m for m in messages):
-#        return  # 메시지가 비어있거나 None이면 함수를 종료
-#    # 문자열을 합쳐서 한번에 전송합니다
-#    hook.send('\n'.join(messages))
+        return  # 메시지가 비어있거나 None이면 함수를 종료
+    # 문자열을 합쳐서 한번에 전송합니다
+    hook.send('\n'.join(messages))
 
 
 
@@ -214,43 +199,22 @@ def reserve_tennis_court():
     red_time_reservations = {}
     time_pattern = re.compile(r'^\d{2}:\d{2}~\d{2}:\d{2}$')  # 시간 패턴에 대한 정규 표현식
 
-# 08:00 ~ 16:00 만 포함
     for date, info in reservations.items():
         for court, times in info['courts'].items():
             # 회차와 시간 정보가 번갈아 저장된 리스트에서 시간 정보만 추출합니다.
             times_only = [time for i, time in enumerate(times) if i % 2 != 0]
-            
-            # 평일 및 주말의 08:00~16:00 시간만 포함
-            red_times = [
-                time for time in times_only
-                if time_pattern.match(time) and (
-                    "08:00" <= time[:5] <= "16:00"  # 평일 및 주말 08:00~16:00
-                )
-            ]
+            red_times = [time for time in times_only if time_pattern.match(time) and (info['weekday'] in ['토', '일'] or (6 <= int(time[:2]) < 9) or (19 <= int(time[6:8]) < 22))]
 
-            # 조건에 맞는 시간대가 있으면 red_time_reservations에 추가
+            # 원하지 않는 시간대를 제거합니다.
+            for unwanted_time in ["08:00~09:00", "11:00~13:00", "13:00~15:00", "18:00~19:00"]:
+                if unwanted_time in red_times:
+                    red_times.remove(unwanted_time)
+            
+
             if red_times:
                 if date not in red_time_reservations:
                     red_time_reservations[date] = {'weekday': info['weekday'], 'courts': {}}
                 red_time_reservations[date]['courts'][court] = red_times
-
-# Original
-#    for date, info in reservations.items():
-#        for court, times in info['courts'].items():
-#            # 회차와 시간 정보가 번갈아 저장된 리스트에서 시간 정보만 추출합니다.
-#            times_only = [time for i, time in enumerate(times) if i % 2 != 0]
-#            red_times = [time for time in times_only if time_pattern.match(time) and (info['weekday'] in ['토', '일'] or (6 <= int(time[:2]) < 9) or (19 <= int(time[6:8]) < 22))]
-#
-#            # 원하지 않는 시간대를 제거합니다.
-#            for unwanted_time in ["08:00~09:00", "11:00~13:00", "13:00~15:00", "18:00~19:00"]:
-#                if unwanted_time in red_times:
-#                    red_times.remove(unwanted_time)
-#            
-#
-#            if red_times:
-#                if date not in red_time_reservations:
-#                    red_time_reservations[date] = {'weekday': info['weekday'], 'courts': {}}
-#                red_time_reservations[date]['courts'][court] = red_times
 
     # 빨간색으로 표시된 시간대의 예약 정보를 디스코드에 보냅니다.
     messages = []
