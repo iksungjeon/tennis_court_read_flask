@@ -1,0 +1,354 @@
+from flask import Flask, render_template
+import datetime
+import sqlite3
+import re
+from selenium.common.exceptions import StaleElementReferenceException
+from dhooks import Webhook
+
+app = Flask(__name__)
+
+last_run_time = None
+reservations = {}
+
+def send_discord_notification(messages):
+    hook_url = "https://discord.com/api/webhooks/1280349674238120008/7TPHe5Cc62plTE7iFfhTFiM5FlW5uGqFuFV__KerpsK6aU8Kj8FcXfj-F1hPoZ8FDStw"
+    hook = Webhook(hook_url)
+    if not messages or all(not m for m in messages):
+        print("No messages to send.")
+        return  # 메시지가 비어있으면 종료
+
+    # 메시지를 하나의 문자열로 합치기
+    combined_message = '\n'.join(messages)
+
+    # 디스코드 메시지 제한 (2000자)을 고려하여 분할 전송
+    MAX_MESSAGE_LENGTH = 2000
+    for i in range(0, len(combined_message), MAX_MESSAGE_LENGTH):
+        chunk = combined_message[i:i + MAX_MESSAGE_LENGTH]
+        hook.send(chunk)
+
+## 디스코드 웹훅을 사용하여 메시지를 보냅니다
+#def send_discord_notification(messages):
+##    hook_url = "https://discord.com/api/webhooks/1131399685345656972/3KjKIJLr2rRAuYngCn-H_Lha1RA1lu6K1Lzx_QgmFPtWfl0sITgbQ1ojX1b5jim2F6fU"
+#    hook_url = "https://discord.com/api/webhooks/1280349674238120008/7TPHe5Cc62plTE7iFfhTFiM5FlW5uGqFuFV__KerpsK6aU8Kj8FcXfj-F1hPoZ8FDStw"
+#    hook = Webhook(hook_url)
+#    if not messages or all(not m for m in messages):
+#        return  # 메시지가 비어있거나 None이면 함수를 종료
+#    # 문자열을 합쳐서 한번에 전송합니다
+#    hook.send('\n'.join(messages))
+
+
+
+# 날짜를 받아서 요일을 반환하는 함수를 정의합니다.
+def get_day_of_week(date):
+    weekday_dict = {0: '월', 1: '화', 2: '수', 3: '목', 4: '금', 5: '토', 6: '일'}
+    return weekday_dict[datetime.datetime.strptime(date, "%Y%m%d").weekday()]
+
+# 이제 각 예약 날짜에 대해 요일을 계산하고 이를 결과 딕셔너리에 추가합니다.
+for date in reservations:
+    reservations[date]['weekday'] = get_day_of_week(date)
+
+def process_month(driver, reservations):
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait, Select
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
+    import time
+    wait = WebDriverWait(driver, 3)
+    courts_order = [9, 12, 14] + [i for i in range(1, 19) if i not in [9, 12, 14]]
+
+    for court_num in courts_order:
+        # 코트 선택과 관련된 코드
+        retries = 0
+        max_retries = 2
+        while retries < max_retries:
+            try:
+                select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
+                select_court = Select(select_court_field)
+                select_court.select_by_value(str(court_num))  # 코트 선택
+                break
+            except StaleElementReferenceException:
+                retries += 1
+                if retries >= max_retries:
+                    raise
+            time.sleep(2)  # 페이지 로딩 대기 시간을 10초로 늘림
+
+        try:
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//button[contains(text(), '조회')]"))).click()
+        except TimeoutException:
+            print("TimeoutException: Element not found")
+
+        try:
+            available_dates = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.state_10")))
+
+        except TimeoutException:
+            print("TimeoutException: Element not found")
+            available_dates = []
+
+        # Step 1: available_dates에서 안전하게 id값 수집
+        sorted_dates_ids = []
+        for date_element in available_dates:
+            try:
+                id_value = date_element.get_attribute("id")
+            except StaleElementReferenceException:
+                print("StaleElementReferenceException: id 값을 가져오는 중 문제가 발생했습니다. 해당 요소는 건너뜁니다.")
+                continue
+            id_parts = id_value.split('-')
+            if len(id_parts) == 2:
+                sorted_dates_ids.append(id_value)
+            else:
+                print(f"Unexpected id value: {id_value}")
+
+        # 수집한 id들을 정렬 (예: 'date-15'의 숫자 부분 기준)
+        sorted_dates_ids.sort(key=lambda x: int(x.split('-')[1]))
+
+
+
+
+
+
+        # 정렬된 id 리스트를 순회하며 처리
+        for date_id in sorted_dates_ids:
+            try:
+                # 페이지에서 해당 id의 요소를 다시 찾음
+                date_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, date_id))
+                )
+                date_element.click()
+            except StaleElementReferenceException:
+                print(f"StaleElementReferenceException: 요소({date_id})가 갱신됨. 재시도합니다.")
+                date_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, date_id))
+                )
+                date_element.click()
+
+            time.sleep(2)  # 페이지 갱신 대기
+
+            # 코트 선택 필드를 찾고 select 객체 생성
+            select_court_field = wait.until(EC.presence_of_element_located((By.ID, "place")))
+            select_court = Select(select_court_field)
+
+            # 옵션들이 모두 로드될 때까지 대기 (옵션이 최소 2개 이상일 때)
+            WebDriverWait(driver, 10).until(lambda d: len(select_court.options) >= 2)
+
+            # 현재 select 요소의 모든 옵션 값 확인
+            available_option_values = [option.get_attribute("value") for option in select_court.options]
+            print("Available options:", available_option_values)
+
+            # 원하는 코트 번호 (예: court_num 변수의 값이 2일 경우)
+            desired_value = str(court_num)
+
+            if desired_value in available_option_values:
+                select_court.select_by_value(desired_value)
+            else:
+                print(f"Cannot locate option with value: {desired_value}. Available values: {available_option_values}")
+                # 옵션이 없을 경우 대체 로직 추가 (예: 기본값 선택 또는 에러 처리)
+                # 예시: select_court.select_by_index(0)
+
+            # 예약 가능한 시간 정보를 가져옴 (없으면 예외 처리)
+            try:
+                available_times = WebDriverWait(driver, 5).until(
+                    EC.presence_of_all_elements_located((By.XPATH, "//td[text()='예약가능']/preceding-sibling::td"))
+                )
+            except TimeoutException:
+                print("No available times found.")
+                available_times = []
+
+            # 예약 가능한 시간이 있으면 예약 정보를 reservations 딕셔너리에 저장
+            if available_times:
+                for time_element in available_times:
+                    time_text = time_element.text.strip()
+                    if time_text:
+                        date = date_id.split('-')[1]
+                        court = select_court.first_selected_option.text
+                        if date not in reservations:
+                            reservations[date] = {'weekday': get_day_of_week(date), 'courts': {}}
+                        if court not in reservations[date]['courts']:
+                            reservations[date]['courts'][court] = []
+                        reservations[date]['courts'][court].append(time_text)
+
+
+
+
+
+
+@app.route('/reserve')
+def reserve_tennis_court():
+    global last_run_time, reservations
+    query_start_time = datetime.datetime.now()
+
+    # 함수 내용을 이곳에 입력합니다.
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait, Select
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException, TimeoutException
+    import time
+
+    driver_path = '/Users/1112231/Downloads/chromedriver-mac-arm64_128/chromedriver'
+
+    service = Service(driver_path)
+
+    driver = webdriver.Chrome(service=service)
+    driver.set_window_size(400, 100)
+    try:
+
+        url = "https://www.ycs.or.kr/fmcs/133"
+        driver.get(url)
+
+        username_field = driver.find_element(By.CSS_SELECTOR, "#user_id")
+        username_field.send_keys("hmnisaws")
+
+        password_field = driver.find_element(By.CSS_SELECTOR, "#user_password")
+        password_field.send_keys("dlrtjd110$")
+
+        time.sleep(2)
+
+        login_button = driver.find_element(By.XPATH, "//button[text()='로그인']")
+        login_button.click()
+
+        try:
+            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#process_logout")))
+
+        except UnexpectedAlertPresentException:
+            alert = driver.switch_to.alert
+            print("Alert shows: " + alert.text)
+            alert.accept()
+
+        url = "https://www.ycs.or.kr/fmcs/4"
+        driver.get(url)
+
+        select_field = Select(driver.find_element(By.CSS_SELECTOR, "#center"))
+        select_field.select_by_value("YCS04")
+        time.sleep(2)
+
+        wait = WebDriverWait(driver, 3)
+        
+        reservations = {}
+        # 이번달에 대한 코트 예약 조회
+        process_month(driver, reservations)
+       
+        # 다음달로 이동
+        next_month_button = driver.find_element(By.ID, 'next_month')
+        next_month_button.click()
+        time.sleep(5)
+
+        # 다음달에 대한 코트 예약 조회
+        process_month(driver, reservations)
+    finally:
+        driver.quit()
+
+
+    query_end_time = datetime.datetime.now()
+    conn = sqlite3.connect('app.db')
+    c = conn.cursor()
+    c.execute("UPDATE QueryTimes SET start_time = ?, end_time = ? WHERE id = 1", (query_start_time, query_end_time))
+    conn.commit()
+    conn.close()
+
+    last_run_time = datetime.datetime.now()
+
+    conn = sqlite3.connect('app.db')
+    c = conn.cursor()
+    c.execute("UPDATE LastRunTime SET time = ? WHERE id = 1", (last_run_time,))
+    conn.commit()
+    conn.close()
+
+    # 'reservations' dict에서 빨간색으로 표시된 시간대에 해당하는 예약만 수집합니다.
+    red_time_reservations = {}
+    time_pattern = re.compile(r'^\d{2}:\d{2}~\d{2}:\d{2}$')  # 시간 패턴에 대한 정규 표현식
+
+# 08:00 ~ 16:00 만 포함
+    for date, info in reservations.items():
+        for court, times in info['courts'].items():
+            # 회차와 시간 정보가 번갈아 저장된 리스트에서 시간 정보만 추출합니다.
+            times_only = [time for i, time in enumerate(times) if i % 2 != 0]
+            
+            # 평일 및 주말의 08:00~16:00 시간만 포함
+            red_times = [
+                time for time in times_only
+                if time_pattern.match(time) and (
+                    "08:00" <= time[:5] <= "16:00"  # 평일 및 주말 08:00~16:00
+                )
+            ]
+
+            # 조건에 맞는 시간대가 있으면 red_time_reservations에 추가
+            if red_times:
+                if date not in red_time_reservations:
+                    red_time_reservations[date] = {'weekday': info['weekday'], 'courts': {}}
+                red_time_reservations[date]['courts'][court] = red_times
+
+# Original
+#    for date, info in reservations.items():
+#        for court, times in info['courts'].items():
+#            # 회차와 시간 정보가 번갈아 저장된 리스트에서 시간 정보만 추출합니다.
+#            times_only = [time for i, time in enumerate(times) if i % 2 != 0]
+#            red_times = [time for time in times_only if time_pattern.match(time) and (info['weekday'] in ['토', '일'] or (6 <= int(time[:2]) < 9) or (19 <= int(time[6:8]) < 22))]
+#
+#            # 원하지 않는 시간대를 제거합니다.
+#            for unwanted_time in ["08:00~09:00", "11:00~13:00", "13:00~15:00", "18:00~19:00"]:
+#                if unwanted_time in red_times:
+#                    red_times.remove(unwanted_time)
+#            
+#
+#            if red_times:
+#                if date not in red_time_reservations:
+#                    red_time_reservations[date] = {'weekday': info['weekday'], 'courts': {}}
+#                red_time_reservations[date]['courts'][court] = red_times
+
+    # 빨간색으로 표시된 시간대의 예약 정보를 디스코드에 보냅니다.
+    messages = []
+    for date, info in red_time_reservations.items():
+        for court, times in info['courts'].items():
+            message = f"날짜: {date}, 요일: {info['weekday']}, 코트: {court}, 시간: {', '.join(times)}"
+            messages.append(message)
+
+    send_discord_notification(messages)
+
+
+    return 'Reserve job done.'
+
+
+
+@app.route('/result')
+def result():
+    conn = sqlite3.connect('app.db')
+    c = conn.cursor()
+
+    c.execute("SELECT time FROM LastRunTime WHERE id = 1")
+    last_run_time = c.fetchone()[0]
+
+    c.execute("SELECT start_time, end_time FROM QueryTimes WHERE id = 1")
+    query_times = c.fetchone()
+    query_start_time = query_times[0]
+    query_end_time = query_times[1]
+
+    conn.close()
+    
+    
+
+    return render_template('results.html', 
+                           reservations=reservations, 
+                           last_run_time=last_run_time,
+                           execution_frequency="10minutes",
+                           query_start_time=query_start_time,
+                           query_end_time=query_end_time)
+
+if __name__ == '__main__':
+    conn = sqlite3.connect('app.db')
+    c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS LastRunTime (id INTEGER PRIMARY KEY, time TEXT)")
+    c.execute("INSERT INTO LastRunTime (id, time) SELECT 1, '' WHERE NOT EXISTS(SELECT 1 FROM LastRunTime WHERE id = 1)")
+
+    c.execute("CREATE TABLE IF NOT EXISTS QueryTimes (id INTEGER PRIMARY KEY, start_time TEXT, end_time TEXT)")
+    c.execute("INSERT INTO QueryTimes (id, start_time, end_time) SELECT 1, '', '' WHERE NOT EXISTS(SELECT 1 FROM QueryTimes WHERE id = 1)")
+    conn.commit()
+    conn.close()
+
+    app.run(debug=True, host='0.0.0.0', port=5005)
